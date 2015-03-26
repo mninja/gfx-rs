@@ -25,8 +25,8 @@ pub trait FactoryExt<R: device::Resources> {
     /// Convenience function around `create_buffer` and `Mesh::from_format`.
     fn create_mesh<T: VertexFormat + Copy>(&mut self, data: &[T]) -> Mesh<R>;
     /// Create a simple program given a vertex shader with a fragment one.
-    fn link_program(&mut self, vs_code: &[u8], fs_code: &[u8])
-                    -> Result<device::handle::Program<R>, ProgramError>;
+    fn link_program<Callback : Fn(String) -> ()>(&mut self, vs_code: &[u8], fs_code: &[u8], callback : Option<Callback>)
+                                                 -> Result<device::handle::Program<R>, ProgramError>;
     /// Create a simple program given `ShaderSource` versions of vertex and
     /// fragment shaders, chooss the matching versions for the device.
     fn link_program_source(&mut self, vs_src: ShaderSource, fs_src: ShaderSource,
@@ -46,8 +46,8 @@ impl<R: device::Resources, F: device::Factory<R>> FactoryExt<R> for F {
         Mesh::from_format(buf, nv as device::VertexCount)
     }
 
-    fn link_program(&mut self, vs_code: &[u8], fs_code: &[u8])
-                    -> Result<device::handle::Program<R>, ProgramError> {
+    fn link_program<Callback : Fn(String) -> ()>(&mut self, vs_code: &[u8], fs_code: &[u8], callback : Option<Callback>)
+                                                 -> Result<device::handle::Program<R>, ProgramError> {
         let vs = match self.create_shader(Stage::Vertex, vs_code) {
             Ok(s) => s,
             Err(e) => return Err(ProgramError::Vertex(e)),
@@ -57,7 +57,7 @@ impl<R: device::Resources, F: device::Factory<R>> FactoryExt<R> for F {
             Err(e) => return Err(ProgramError::Fragment(e)),
         };
 
-        self.create_program(&[vs, fs], None)
+        self.create_program(&[vs, fs], None, callback)
             .map_err(|e| ProgramError::Link(e))
     }
 
